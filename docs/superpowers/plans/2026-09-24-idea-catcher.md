@@ -288,14 +288,20 @@ alter publication supabase_realtime add table captures;
 
 - [ ] **Step 3: USER ACTION — apply the migration and set the email template**
 
-Ask the user to: open Supabase → SQL Editor, paste the file, run it. Then Authentication → Email Templates → **Magic Link**: replace the body with:
+Ask the user to:
 
-```html
-<h2>Idea Catcher sign-in code</h2>
-<p>Your code: <strong>{{ .Token }}</strong></p>
-```
+1. Open Supabase → SQL Editor, paste the file, run it.
+2. Authentication → Email Templates → **Magic Link** *and* **Confirm signup**: replace each body with:
 
-Then Authentication → Users → **Add user** (email + password, auto-confirm) for the E2E test account; note the credentials for Task 13.
+   ```html
+   <h2>Idea Catcher sign-in code</h2>
+   <p>Your code: <strong>{{ .Token }}</strong></p>
+   ```
+
+3. Authentication → Users → **Add user** twice, both with auto-confirm:
+   - their own email (password not needed) — the real account;
+   - an E2E test account with email + password; note the credentials for Task 13.
+4. Authentication → Sign In / Providers → Email: turn **off** "Allow new users to sign up". Without this, anyone who finds the deployed URL can create an account and spend the Anthropic credits.
 
 - [ ] **Step 4: Write the failing types test**
 
@@ -539,7 +545,11 @@ export default function LoginPage() {
   }
 
   const supabase = createClient();
-  const sendCode = () => run(() => supabase.auth.signInWithOtp({ email }), () => setCodeSent(true));
+  // Accounts are created by the owner in the Supabase dashboard; never auto-create here.
+  const sendCode = () => run(
+    () => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }),
+    () => setCodeSent(true),
+  );
   const verify = () =>
     run(
       () => (passwordLogin
@@ -1524,22 +1534,23 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     const onOnline = () => void syncNow();
 
-    void syncNow().then(() =>
-      retryUnprocessed({
-        listUnprocessed: async () => {
-          const { data, error } = await supabase
-            .from('captures')
-            .select('id')
-            .in('processing', ['pending', 'failed'])
-            .lt('processing_attempts', MAX_AUTO_ATTEMPTS);
-          if (error) {
-            log.error('listUnprocessed failed', { message: error.message });
-            return [];
-          }
-          return data.map((r) => r.id as string);
-        },
-        process: triggerProcessing,
-      }));
+    // Retry older rows first: after syncNow, freshly synced rows are also 'pending'
+    // and would be processed twice.
+    void retryUnprocessed({
+      listUnprocessed: async () => {
+        const { data, error } = await supabase
+          .from('captures')
+          .select('id')
+          .in('processing', ['pending', 'failed'])
+          .lt('processing_attempts', MAX_AUTO_ATTEMPTS);
+        if (error) {
+          log.error('listUnprocessed failed', { message: error.message });
+          return [];
+        }
+        return data.map((r) => r.id as string);
+      },
+      process: triggerProcessing,
+    }).then(syncNow);
 
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -3136,14 +3147,15 @@ Capture ideas and chores in seconds on your phone; Claude organizes them; act on
 
 1. Create a Supabase project. Copy Project URL and publishable key.
 2. Supabase → SQL Editor: run `supabase/migrations/0001_init.sql`.
-3. Supabase → Authentication → Email Templates → Magic Link: make the body show `{{ .Token }}` (the app signs in with a 6-digit code, because an iPhone home-screen app cannot receive a magic link).
-4. `.env.local`:
+3. Supabase → Authentication → Email Templates → **Magic Link** and **Confirm signup**: make the body show `{{ .Token }}` (the app signs in with a 6-digit code, because an iPhone home-screen app cannot receive a magic link).
+4. Supabase → Authentication → Users → Add user (auto-confirm) for your email, then turn **off** "Allow new users to sign up" in the Email provider settings. New users are added the same way.
+5. `.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    ANTHROPIC_API_KEY=...
    ```
-5. `npm install && npm run dev`
+6. `npm install && npm run dev`
 
 ## Tests
 
