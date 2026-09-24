@@ -30,7 +30,7 @@ Capture ideas and chores in a few seconds on the phone. Let AI organize them. Ac
 - Inbox with filters, editing, done/archive.
 - On-demand daily/weekly digest (cached).
 - Offline capture via a local outbox.
-- Magic-link login; per-user data isolation.
+- Email one-time-code login; per-user data isolation.
 
 ### Out of v1 (candidates for later)
 
@@ -159,7 +159,7 @@ Runs on app load, on the browser `online` event, and after each save. Only one s
 
 ### Login
 
-Supabase magic link. Session persists on the iPhone PWA.
+Supabase email one-time code (6 digits, typed into the app). Not a magic link: an iOS home-screen PWA has storage separate from Safari, so a link opened from Mail would sign in Safari, not the app. Session persists on the iPhone PWA.
 
 ### `/` Capture
 
@@ -203,7 +203,7 @@ As in 5.1. Works offline once the app shell is cached.
 - **Unit (Vitest):** outbox, sync and retry rules, prompt output → zod validation using recorded model responses, digest cache check, rate limiter.
 - **API routes:** Claude client mocked; cases: success, invalid JSON, timeout, wrong user, `user_edited` skip.
 - **E2E (Playwright):** capture → appears in inbox → processed → mark done; offline capture with network blocked, then sync on reconnect.
-- **Manual on iPhone** after first deploy: install to home screen, mixed 中/English dictation, airplane-mode capture then sync, magic-link login.
+- **Manual on iPhone** after first deploy: install to home screen, mixed 中/English dictation, airplane-mode capture then sync, email-code login inside the installed app.
 
 ## 10. Configuration
 
