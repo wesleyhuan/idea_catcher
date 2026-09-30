@@ -2,12 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSync } from '@/components/SyncProvider';
+import { logger } from '@/lib/logger';
+
+const log = logger('capture');
 
 export function CaptureBox() {
   const { save, pendingItems } = useSync();
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
   // Laptop: focuses immediately. iOS only opens the keyboard after a tap.
@@ -16,13 +20,22 @@ export function CaptureBox() {
   async function submit() {
     if (saving) return; // prevents a double tap creating two captures
     setSaving(true);
-    const ok = await save(text);
-    setSaving(false);
-    if (!ok) return;
-    setText('');
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
-    box.current?.focus();
+    try {
+      const ok = await save(text);
+      if (!ok) return;
+      setText('');
+      setError(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+      box.current?.focus();
+    } catch (err) {
+      // Keep the typed text so nothing is lost (e.g. IndexedDB unavailable
+      // in iOS Safari private mode, or quota exceeded).
+      log.error('save failed', { err });
+      setError("Couldn't save on this device — please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -40,6 +53,7 @@ export function CaptureBox() {
           Save
         </button>
         {saved && <span className="text-green-600">Saved ✓</span>}
+        {error && <span className="text-red-600">{error}</span>}
         {pendingItems.length > 0 && (
           <span className="ml-auto text-sm text-neutral-500">{pendingItems.length} waiting to sync</span>
         )}
