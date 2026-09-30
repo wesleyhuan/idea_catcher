@@ -31,6 +31,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [pendingItems, setPendingItems] = useState<OutboxItem[]>([]);
   const [lastSyncAt, setLastSyncAt] = useState(0);
 
+  // syncOutbox and listOutbox failures are caught and logged here, not left
+  // for the caller: every caller (save, the online listener, the startup
+  // retry chain) fires this without awaiting or catching, so a rejection
+  // here would otherwise surface as an unhandled promise rejection.
   const syncNow = useCallback(async () => {
     const supabase = createClient();
     await syncOutbox({
@@ -46,8 +50,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         return data.map((r) => r.id as string);
       },
       process: triggerProcessing,
+    }).catch((err) => log.error('sync failed', { err }));
+
+    const items = await listOutbox().catch((err) => {
+      log.error('listOutbox failed', { err });
+      return null;
     });
-    setPendingItems(await listOutbox());
+    if (items) setPendingItems(items);
     setLastSyncAt(Date.now());
   }, []);
 
@@ -79,7 +88,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         return data.map((r) => r.id as string);
       },
       process: triggerProcessing,
-    }).then(syncNow);
+    }).then(syncNow).catch((err) => log.error('startup retry failed', { err }));
 
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);

@@ -78,6 +78,34 @@ describe('syncOutbox', () => {
     const { deps } = memoryDeps([item('a')], { process: vi.fn(async () => { throw new Error('502'); }) });
     expect(await syncOutbox(deps)).toEqual({ synced: 1, remaining: 0 });
   });
+
+  it('clears the single-flight lock when a run rejects, so the next call is not blocked', async () => {
+    const failing = memoryDeps([item('a')], {
+      list: vi.fn(async () => { throw new Error('IDB blocked'); }),
+    });
+    await expect(syncOutbox(failing.deps)).rejects.toThrow('IDB blocked');
+
+    const { deps, store } = memoryDeps([item('a')]);
+    expect(await syncOutbox(deps)).toEqual({ synced: 1, remaining: 0 });
+    expect(store).toEqual([]);
+  });
+
+  it('syncs an item saved in the microtask gap right after the last rerun check', async () => {
+    // `deps.process` fires (fire-and-forget) after the do-while loop's last
+    // `rerunRequested` check has already passed and the loop is exiting.
+    // Two nested queueMicrotask calls land the store.push + second
+    // syncOutbox call in that same window: with the old outer `.finally()`,
+    // `running` was still non-null there, so the second call only set an
+    // orphaned `rerunRequested` and item 'b' was never synced.
+    const { deps, store } = memoryDeps([item('a')]);
+    let late: Promise<unknown> | undefined;
+    deps.process.mockImplementationOnce(async () => {
+      queueMicrotask(() => queueMicrotask(() => { store.push(item('b')); late = syncOutbox(deps); }));
+    });
+    await syncOutbox(deps);
+    await late;
+    expect(store).toEqual([]);
+  });
 });
 
 describe('retryUnprocessed', () => {

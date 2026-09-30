@@ -23,17 +23,25 @@ export function syncOutbox(deps: SyncDeps): Promise<SyncResult> {
     return running;
   }
   running = (async () => {
-    let total = 0;
-    let result: SyncResult;
-    do {
-      rerunRequested = false;
-      result = await syncOnce(deps);
-      total += result.synced;
-    } while (rerunRequested);
-    return { synced: total, remaining: result.remaining };
-  })().finally(() => {
-    running = null;
-  });
+    try {
+      let total = 0;
+      let result: SyncResult;
+      do {
+        rerunRequested = false;
+        result = await syncOnce(deps);
+        total += result.synced;
+      } while (rerunRequested);
+      return { synced: total, remaining: result.remaining };
+    } finally {
+      // Cleared here (inside the async body, same tick as the loop's last
+      // `rerunRequested` check) rather than via an outer `.finally()`, which
+      // would run one microtask later and leave a gap where a `syncOutbox`
+      // call landing in it sets an orphaned `rerunRequested` that nothing
+      // reads. Also runs on throw, so a rejected run never leaves `running`
+      // stuck non-null.
+      running = null;
+    }
+  })();
   return running;
 }
 
