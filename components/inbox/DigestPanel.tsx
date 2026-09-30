@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { postJson } from '@/lib/api';
 import { periodRange } from '@/lib/period';
 import { Markdown } from '@/components/Markdown';
@@ -15,18 +15,24 @@ export function DigestPanel() {
   const [content, setContent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped on every load() call; a stale in-flight response is discarded if a
+  // newer one (tab switch, retry) has since started, so it can't overwrite
+  // the current tab's content/error after the fact.
+  const seq = useRef(0);
 
   const load = useCallback(async () => {
+    const id = ++seq.current;
+    setContent(null);
     setBusy(true);
     setError(null);
     try {
       const r = await postJson<{ content_md: string }>('/api/digest', periodRange(period));
-      setContent(r.content_md);
+      if (id === seq.current) setContent(r.content_md);
     } catch (err) {
       log.error('digest failed', { period, err });
-      setError(err instanceof Error ? err.message : String(err));
+      if (id === seq.current) setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusy(false);
+      if (id === seq.current) setBusy(false);
     }
   }, [period]);
 
