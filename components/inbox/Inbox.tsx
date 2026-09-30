@@ -45,8 +45,12 @@ export function Inbox() {
   useEffect(() => {
     void load();
     const supabase = createClient();
+    // A unique topic per effect run avoids reusing an already-subscribed channel:
+    // removeChannel() in cleanup isn't awaited, so on a fast remount (status filter
+    // change, or React 19 StrictMode) supabase.channel('captures-inbox') could still
+    // return the old, already-joined channel — and .on() throws after subscribe().
     const channel = supabase
-      .channel('captures-inbox')
+      .channel(`captures-inbox-${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'captures' }, () => void load())
       .subscribe();
     return () => {
