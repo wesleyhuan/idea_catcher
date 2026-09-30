@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SyncProvider } from '@/components/SyncProvider';
 import { Nav } from '@/components/Nav';
+import { ServiceWorker } from '@/components/ServiceWorker';
 
 export const metadata: Metadata = {
   title: 'Idea Catcher',
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Nav />
           <main className="mx-auto max-w-5xl px-4 pb-24 pt-4 md:pb-8">{children}</main>
         </SyncProvider>
+        <ServiceWorker />
       </body>
     </html>
   );
