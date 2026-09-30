@@ -10,6 +10,7 @@ import { FilterBar } from './FilterBar';
 import { CaptureCard } from './CaptureCard';
 import { CaptureDetail, type CapturePatch } from './CaptureDetail';
 import { SpecPanel } from './SpecPanel';
+import { DigestPanel } from './DigestPanel';
 
 const log = logger('inbox');
 
@@ -87,6 +88,7 @@ export function Inbox() {
 
   return (
     <div className="space-y-4">
+      <DigestPanel />
       <FilterBar value={filters} onChange={setFilters} />
       {error && <p role="alert" className="rounded-lg bg-red-50 p-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
       <div className="grid gap-4 md:grid-cols-2">
