@@ -9,6 +9,7 @@ import { logger } from '@/lib/logger';
 import { FilterBar } from './FilterBar';
 import { CaptureCard } from './CaptureCard';
 import { CaptureDetail, type CapturePatch } from './CaptureDetail';
+import { SpecPanel } from './SpecPanel';
 
 const log = logger('inbox');
 
@@ -98,7 +99,8 @@ export function Inbox() {
         </ul>
         {selected && (
           <div className="md:sticky md:top-4 md:self-start">
-            <CaptureDetail key={selected.id} capture={selected} onUpdate={(p) => update(selected.id, p)} />
+            <CaptureDetail key={selected.id} capture={selected} onUpdate={(p) => update(selected.id, p)}
+              specSlot={<SpecPanel capture={selected} onGenerated={() => void load()} />} />
           </div>
         )}
       </div>
