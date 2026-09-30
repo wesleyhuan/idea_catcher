@@ -22,6 +22,7 @@ export function SpecPanel({ capture, onGenerated }: { capture: Capture; onGenera
       setSpec(spec_md);
       onGenerated();
     } catch (err) {
+      log.error('spec generation failed', { id: capture.id, err });
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
