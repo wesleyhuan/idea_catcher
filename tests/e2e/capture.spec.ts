@@ -23,12 +23,13 @@ test('capture → processed in inbox → done', async ({ page }) => {
   const card = page.getByTestId('capture-card').first();
   await expect(card).toHaveAttribute('data-processing', 'done', { timeout: 45_000 });
   await card.click();
-  await expect(page.getByText(token)).toBeAttached(); // raw text inside "Original capture"
+  const originalCapture = page.locator('details', { hasText: 'Original capture' });
+  await expect(originalCapture.getByText(token)).toBeAttached(); // raw text inside "Original capture"
 
   await page.getByRole('button', { name: 'Done' }).click();
   await page.getByLabel('Status').selectOption('done');
   await page.getByTestId('capture-card').first().click();
-  await expect(page.getByText(token)).toBeAttached();
+  await expect(page.locator('details', { hasText: 'Original capture' }).getByText(token)).toBeAttached();
 });
 
 test('offline capture waits in the outbox and syncs on reconnect', async ({ page, context }) => {

@@ -15,7 +15,7 @@ export function FilterBar({ value, onChange }: { value: Filters; onChange: (f: F
       </select>
       <select aria-label="Context" className={select} value={value.context}
         onChange={(e) => onChange({ ...value, context: e.target.value as Filters['context'] })}>
-        <option value="all">Anywhere</option>
+        <option value="all">All contexts</option>
         {CONTEXTS.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
       <select aria-label="Status" className={select} value={value.status}
