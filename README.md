@@ -26,6 +26,7 @@ Capture ideas and chores in seconds on your phone; Claude organizes them; act on
 1. Push to GitHub, import the repo in Vercel.
 2. Add the three env vars above (do **not** set `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN` in production).
 3. Supabase → Authentication → URL Configuration: set Site URL to the Vercel URL.
+4. Vercel → Project Settings → Functions: keep **Fluid compute** on (default for new projects). The spec and digest routes need up to 200s; without Fluid compute the Hobby plan cuts functions off at 60s.
 
 ## iPhone checklist (after each deploy)
 
