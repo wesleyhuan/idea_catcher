@@ -5,7 +5,7 @@ Capture ideas and chores in seconds on your phone; Claude organizes them; act on
 ## Setup
 
 1. Create a Supabase project. Copy Project URL and publishable key.
-2. Supabase → SQL Editor: run `supabase/migrations/0001_init.sql`.
+2. Supabase → SQL Editor: run each file in `supabase/migrations/` in order (`0001_init.sql`, then `0002_pin_trigger_search_path.sql`).
 3. Supabase → Authentication → Email Templates → **Magic Link**: replace the body with one that shows `{{ .Token }}` (the app signs in with a 6-digit code, because an iPhone home-screen app cannot receive a magic link).
 4. Supabase → Authentication → Users → Add user (auto-confirm) for your email, then turn **off** "Allow new users to sign up" in the Email provider settings. New users are added the same way.
 5. `.env.local`:
