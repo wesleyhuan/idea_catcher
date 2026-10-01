@@ -71,6 +71,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = createClient();
     const onOnline = () => void syncNow();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void syncNow();
+    };
 
     // Retry older rows first: after syncNow, freshly synced rows are also 'pending'
     // and would be processed twice.
@@ -91,7 +94,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }).then(syncNow).catch((err) => log.error('startup retry failed', { err }));
 
     window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibility);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') void syncNow();
+    });
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisibility);
+      authListener.subscription.unsubscribe();
+    };
   }, [syncNow]);
 
   return (

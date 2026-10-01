@@ -69,16 +69,17 @@ async function syncOnce(deps: SyncDeps): Promise<SyncResult> {
   return { synced: items.length, remaining: 0 };
 }
 
+/**
+ * Snapshots the unprocessed ids, then fires processing for each without
+ * awaiting the (full Haiku round-trip) result, so callers that chain more
+ * work after this (e.g. an outbox sync) aren't stuck behind AI latency.
+ */
 export async function retryUnprocessed(deps: {
   listUnprocessed: () => Promise<string[]>;
   process: (id: string) => Promise<void>;
 }): Promise<number> {
   const ids = await deps.listUnprocessed();
   log.info('retrying unprocessed', { count: ids.length });
-  await Promise.allSettled(ids.map((id) =>
-    deps.process(id).catch((err) => {
-      log.error('retry failed', { id, err });
-      throw err;
-    })));
+  ids.forEach((id) => deps.process(id).catch((err) => log.error('retry failed', { id, err })));
   return ids.length;
 }

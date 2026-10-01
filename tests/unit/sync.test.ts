@@ -114,4 +114,20 @@ describe('retryUnprocessed', () => {
     expect(await retryUnprocessed({ listUnprocessed: async () => ['x', 'y'], process })).toBe(2);
     expect(process).toHaveBeenCalledTimes(2);
   });
+
+  it('resolves without waiting for the process calls to finish', async () => {
+    let released = false;
+    const process = vi.fn(() => new Promise<void>((resolve) => {
+      setTimeout(() => { released = true; resolve(); }, 50);
+    }));
+    const count = await retryUnprocessed({ listUnprocessed: async () => ['x'], process });
+    expect(count).toBe(1);
+    expect(process).toHaveBeenCalledWith('x');
+    expect(released).toBe(false); // the round-trip hasn't completed yet
+  });
+
+  it('logs and swallows a process rejection instead of throwing', async () => {
+    const process = vi.fn(async () => { throw new Error('502'); });
+    await expect(retryUnprocessed({ listUnprocessed: async () => ['x'], process })).resolves.toBe(1);
+  });
 });
