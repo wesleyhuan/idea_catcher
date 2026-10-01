@@ -6,7 +6,8 @@ import { makeCaptureRepo } from '@/lib/server/captureRepo';
 import { specForCapture } from '@/lib/server/specCapture';
 import { logger } from '@/lib/logger';
 
-export const maxDuration = 120;
+// ≥ 2 × per-attempt timeout + backoff (SDK retries timeouts once)
+export const maxDuration = 200;
 const log = logger('api/spec');
 const Body = z.object({ id: z.string().uuid() });
 

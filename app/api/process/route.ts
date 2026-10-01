@@ -6,7 +6,8 @@ import { makeCaptureRepo } from '@/lib/server/captureRepo';
 import { processCapture } from '@/lib/server/processCapture';
 import { logger } from '@/lib/logger';
 
-export const maxDuration = 60;
+// ≥ 2 × per-attempt timeout + backoff (SDK retries timeouts once)
+export const maxDuration = 75;
 const log = logger('api/process');
 const Body = z.object({ id: z.string().uuid() });
 

@@ -7,7 +7,8 @@ import { getOrCreateDigest } from '@/lib/server/digest';
 import { PERIODS } from '@/lib/types';
 import { logger } from '@/lib/logger';
 
-export const maxDuration = 120;
+// ≥ 2 × per-attempt timeout + backoff (SDK retries timeouts once)
+export const maxDuration = 200;
 const log = logger('api/digest');
 const Body = z.object({
   period: z.enum(PERIODS),
