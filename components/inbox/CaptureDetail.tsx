@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger';
 const log = logger('capture-detail');
 
 export type CapturePatch = Partial<Pick<Capture,
-  'title' | 'summary' | 'type' | 'context' | 'effort' | 'next_steps' | 'status' | 'user_edited'>>;
+  'title' | 'summary' | 'type' | 'context' | 'effort' | 'next_steps' | 'status' | 'user_edited' | 'processing'>>;
 
 type Props = {
   capture: Capture;
@@ -46,6 +46,7 @@ export function CaptureDetail({ capture: c, onUpdate, specSlot }: Props) {
     ...draft,
     next_steps: draft.next_steps.split('\n').map((s) => s.trim()).filter(Boolean),
     user_edited: true,
+    processing: 'done',
   });
   const setStatus = (status: CaptureStatus) => run({ status });
 

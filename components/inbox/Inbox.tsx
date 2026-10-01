@@ -101,7 +101,7 @@ export function Inbox() {
         </ul>
         {selected && (
           <div className="md:sticky md:top-4 md:self-start">
-            <CaptureDetail key={selected.id} capture={selected} onUpdate={(p) => update(selected.id, p)}
+            <CaptureDetail key={`${selected.id}:${selected.processing}`} capture={selected} onUpdate={(p) => update(selected.id, p)}
               specSlot={<SpecPanel capture={selected} onGenerated={() => void load()} />} />
           </div>
         )}
