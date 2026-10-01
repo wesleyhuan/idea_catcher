@@ -19,7 +19,7 @@ Capture ideas and chores in seconds on your phone; Claude organizes them; act on
 ## Tests
 
 - Unit: `npm test`
-- E2E: create a password user in Supabase, then `E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e`
+- E2E: run against a **separate** Supabase project dedicated to testing (or, if you must share a project, a throwaway user with a long random password that you delete afterward) — never set a password on your real account. Leaving `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN` unset only hides the password field from the login form; Supabase still accepts password sign-in for any user that has a password set, so a password on your real account is a standing credential the flag does not protect. Then: `E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e`
 
 ## Deploy (Vercel)
 
@@ -31,6 +31,7 @@ Capture ideas and chores in seconds on your phone; Claude organizes them; act on
 
 - [ ] Safari → Share → Add to Home Screen; opens full-screen with the IC icon
 - [ ] Sign in inside the installed app with the emailed code
-- [ ] Tap the box, use the keyboard 🎤 to dictate mixed 中文/English → Save → AI title appears in 繁體中文
+- [ ] After installing, open Capture and Inbox once while online so they work offline
+- [ ] Tap the box, use the keyboard 🎤 to dictate mixed 中文/English → Save → the AI title appears in 繁體中文 in the Inbox (and in Recent on the next sync)
 - [ ] Airplane mode → capture → "1 waiting to sync" → airplane mode off → reopen → synced and processed
 - [ ] Laptop inbox shows the capture; Generate spec → Copy works; Digest loads
