@@ -21,14 +21,19 @@ export async function processCapture(
     return { outcome: 'skipped' };
   }
 
-  await repo.markAttempt(id, capture.processing_attempts + 1);
+  // The checks above only avoid a needless claim; the claim re-checks them atomically.
+  const claimed = await repo.claim(id);
+  if (!claimed) {
+    log.info('already being processed or resolved; skip', { id });
+    return { outcome: 'skipped' };
+  }
   try {
-    const saved = await repo.saveResult(id, await ai(capture.raw_text));
+    const saved = await repo.saveResult(id, await ai(claimed.raw_text));
     if (!saved) log.info('user edited during processing; result dropped', { id });
     return { outcome: saved ? 'done' : 'skipped' };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    log.error('processing failed', { id, attempt: capture.processing_attempts + 1, err });
+    log.error('processing failed', { id, attempt: claimed.processing_attempts, err });
     await repo.markFailed(id, message);
     return { outcome: 'failed', error: message };
   }
