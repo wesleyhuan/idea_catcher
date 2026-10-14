@@ -55,11 +55,11 @@ describe('processCapture', () => {
     expect(repo.saveResult).toHaveBeenCalledWith('c1', result);
   });
 
-  it('marks failed with the error message when the AI throws', async () => {
+  it('marks failed with a generic error message when the AI throws', async () => {
     const repo = fakeRepo(capture());
     const ai = vi.fn().mockRejectedValue(new Error('Invalid AI result: bad type'));
-    expect(await processCapture(repo, 'c1', ai)).toEqual({ outcome: 'failed', error: 'Invalid AI result: bad type' });
-    expect(repo.markFailed).toHaveBeenCalledWith('c1', 'Invalid AI result: bad type');
+    expect(await processCapture(repo, 'c1', ai)).toEqual({ outcome: 'failed' });
+    expect(repo.markFailed).toHaveBeenCalledWith('c1', 'AI processing failed');
     expect(repo.saveResult).not.toHaveBeenCalled();
   });
 

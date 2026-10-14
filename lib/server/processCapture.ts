@@ -27,9 +27,8 @@ export async function processCapture(
     if (!saved) log.info('user edited during processing; result dropped', { id });
     return { outcome: saved ? 'done' : 'skipped' };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
     log.error('processing failed', { id, attempt: capture.processing_attempts + 1, err });
-    await repo.markFailed(id, message);
-    return { outcome: 'failed', error: message };
+    await repo.markFailed(id, 'AI processing failed');
+    return { outcome: 'failed' };
   }
 }

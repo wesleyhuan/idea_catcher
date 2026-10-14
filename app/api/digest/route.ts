@@ -29,6 +29,6 @@ export async function POST(req: Request) {
     return NextResponse.json(await getOrCreateDigest(makeDigestRepo(auth.db), body.data));
   } catch (err) {
     log.error('digest failed', { ...body.data, err });
-    return jsonError(502, 'ai_failed', err instanceof Error ? err.message : String(err));
+    return jsonError(502, 'ai_failed');
   }
 }
