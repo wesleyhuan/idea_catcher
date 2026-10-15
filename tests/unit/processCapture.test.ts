@@ -17,10 +17,15 @@ function capture(overrides: Partial<Capture> = {}): Capture {
   };
 }
 
-function fakeRepo(row: Capture | null, saveResultReturns = true) {
+// claimed: what claim() returns. Defaults to the row with one more attempt, as the RPC would.
+function fakeRepo(
+  row: Capture | null,
+  saveResultReturns = true,
+  claimed: Capture | null = row && { ...row, processing_attempts: row.processing_attempts + 1 },
+) {
   return {
     get: vi.fn().mockResolvedValue(row),
-    markAttempt: vi.fn().mockResolvedValue(undefined),
+    claim: vi.fn().mockResolvedValue(claimed),
     saveResult: vi.fn().mockResolvedValue(saveResultReturns),
     markFailed: vi.fn().mockResolvedValue(undefined),
     saveSpec: vi.fn().mockResolvedValue(undefined),
@@ -43,15 +48,32 @@ describe('processCapture', () => {
 
   it('skips already processed captures', async () => {
     const ai = vi.fn();
-    expect(await processCapture(fakeRepo(capture({ processing: 'done' })), 'c1', ai)).toEqual({ outcome: 'skipped' });
+    const repo = fakeRepo(capture({ processing: 'done' }));
+    expect(await processCapture(repo, 'c1', ai)).toEqual({ outcome: 'skipped' });
     expect(ai).not.toHaveBeenCalled();
+    expect(repo.claim).not.toHaveBeenCalled();
+  });
+
+  it('skips without calling the AI when another request already holds the claim', async () => {
+    const repo = fakeRepo(capture(), true, null);
+    const ai = vi.fn();
+    expect(await processCapture(repo, 'c1', ai)).toEqual({ outcome: 'skipped' });
+    expect(ai).not.toHaveBeenCalled();
+    expect(repo.markFailed).not.toHaveBeenCalled();
+  });
+
+  it('processes the raw text from the claimed row', async () => {
+    const repo = fakeRepo(capture(), true, capture({ raw_text: '買牛奶和蛋', processing_attempts: 1 }));
+    const ai = vi.fn().mockResolvedValue(result);
+    await processCapture(repo, 'c1', ai);
+    expect(ai).toHaveBeenCalledWith('買牛奶和蛋');
   });
 
   it('saves the result and counts the attempt', async () => {
     const repo = fakeRepo(capture({ processing: 'failed', processing_attempts: 1 }));
     const ai = vi.fn().mockResolvedValue(result);
     expect(await processCapture(repo, 'c1', ai)).toEqual({ outcome: 'done' });
-    expect(repo.markAttempt).toHaveBeenCalledWith('c1', 2);
+    expect(repo.claim).toHaveBeenCalledWith('c1');
     expect(repo.saveResult).toHaveBeenCalledWith('c1', result);
   });
 
