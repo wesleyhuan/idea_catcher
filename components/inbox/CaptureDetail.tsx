@@ -2,13 +2,11 @@
 
 import { useState, type ReactNode } from 'react';
 import { CAPTURE_TYPES, CONTEXTS, EFFORTS, type Capture, type CaptureStatus } from '@/lib/types';
+import type { CapturePatch } from '@/lib/client/captureRepo';
 import { CONTEXT_LABELS, EFFORT_LABELS } from '@/lib/labels';
 import { logger } from '@/lib/logger';
 
 const log = logger('capture-detail');
-
-export type CapturePatch = Partial<Pick<Capture,
-  'title' | 'summary' | 'type' | 'context' | 'effort' | 'next_steps' | 'status' | 'user_edited' | 'processing'>>;
 
 type Props = {
   capture: Capture;

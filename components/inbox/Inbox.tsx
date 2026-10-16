@@ -2,17 +2,20 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/browser';
+import { makeBrowserCaptureRepo, type CapturePatch } from '@/lib/client/captureRepo';
 import { applyFilters, DEFAULT_FILTERS, type Filters } from '@/lib/filters';
 import { postJson } from '@/lib/api';
 import type { Capture } from '@/lib/types';
 import { logger } from '@/lib/logger';
 import { FilterBar } from './FilterBar';
 import { CaptureCard } from './CaptureCard';
-import { CaptureDetail, type CapturePatch } from './CaptureDetail';
+import { CaptureDetail } from './CaptureDetail';
 import { SpecPanel } from './SpecPanel';
 import { DigestPanel } from './DigestPanel';
 
 const log = logger('inbox');
+const repo = () => makeBrowserCaptureRepo(createClient());
+const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export function Inbox() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -25,47 +28,27 @@ export function Inbox() {
     // so a rejection here must be caught locally rather than becoming an unhandled
     // promise rejection at every call site.
     try {
-      const { data, error } = await createClient()
-        .from('captures')
-        .select('*')
-        .eq('status', filters.status)
-        .order('captured_at', { ascending: false })
-        .limit(200);
-      if (error) {
-        log.error('load failed', { status: filters.status, message: error.message });
-        setError(error.message);
-        return;
-      }
+      const data = await repo().listByStatus(filters.status);
       log.debug('loaded', { count: data.length, status: filters.status });
-      setCaptures(data as Capture[]);
+      setCaptures(data);
     } catch (err) {
-      log.error('load rejected', { status: filters.status, err });
-      setError(err instanceof Error ? err.message : String(err));
+      log.error('load failed', { status: filters.status, err });
+      setError(errorMessage(err));
     }
   }, [filters.status]);
 
   useEffect(() => {
     void load();
-    const supabase = createClient();
-    // A unique topic per effect run avoids reusing an already-subscribed channel:
-    // removeChannel() in cleanup isn't awaited, so on a fast remount (status filter
-    // change, or React 19 StrictMode) supabase.channel('captures-inbox') could still
-    // return the old, already-joined channel — and .on() throws after subscribe().
-    const channel = supabase
-      .channel(`captures-inbox-${crypto.randomUUID()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'captures' }, () => void load())
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    return repo().subscribe(() => void load());
   }, [load]);
 
   async function update(id: string, patch: CapturePatch) {
     setError(null);
-    const { error } = await createClient().from('captures').update(patch).eq('id', id);
-    if (error) {
-      log.error('update failed', { id, patch, message: error.message });
-      setError(error.message);
+    try {
+      await repo().update(id, patch);
+    } catch (err) {
+      log.error('update failed', { id, patch, err });
+      setError(errorMessage(err));
       return;
     }
     if (patch.status) setSelectedId(null);
@@ -78,7 +61,7 @@ export function Inbox() {
       await postJson('/api/process', { id });
     } catch (err) {
       log.error('retry failed', { id, err });
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
     await load();
   }
