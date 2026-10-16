@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json(await getOrCreateDigest(makeDigestRepo(auth.db), body.data));
   } catch (err) {
     log.error('digest failed', { ...body.data, err });
-    return jsonError(502, 'ai_failed', err instanceof Error ? err.message : String(err));
+    // Sentinel security directive: do not leak stack traces or internal errors to client
+    return jsonError(502, 'ai_failed');
   }
 }
