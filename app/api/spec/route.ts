@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ spec_md });
   } catch (err) {
     log.error('spec generation failed', { id: body.data.id, err });
-    return jsonError(502, 'ai_failed', err instanceof Error ? err.message : String(err));
+    // Sentinel security directive: do not leak stack traces or internal errors to client
+    return jsonError(502, 'ai_failed');
   }
 }
