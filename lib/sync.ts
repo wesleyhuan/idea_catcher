@@ -1,4 +1,4 @@
-import type { OutboxItem } from '@/lib/outbox';
+import { itemsFor, type OutboxItem } from '@/lib/outbox';
 import { logger } from '@/lib/logger';
 
 const log = logger('sync');
@@ -46,14 +46,19 @@ export function syncOutbox(deps: SyncDeps): Promise<SyncResult> {
 }
 
 async function syncOnce(deps: SyncDeps): Promise<SyncResult> {
-  const items = await deps.list();
-  if (items.length === 0) return { synced: 0, remaining: 0 };
+  const all = await deps.list();
+  if (all.length === 0) return { synced: 0, remaining: 0 };
 
   const userId = await deps.getUserId();
   if (!userId) {
-    log.warn('no session; keeping items', { count: items.length });
-    return { synced: 0, remaining: items.length };
+    log.warn('no session; keeping items', { count: all.length });
+    return { synced: 0, remaining: all.length };
   }
+
+  // Other accounts' items stay on the device until that account signs in again.
+  const items = itemsFor(all, userId);
+  if (items.length < all.length) log.info('keeping other users\' items', { count: all.length - items.length });
+  if (items.length === 0) return { synced: 0, remaining: 0 };
 
   let ids: string[];
   try {
