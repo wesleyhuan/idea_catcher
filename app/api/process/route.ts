@@ -23,10 +23,12 @@ export async function POST(req: Request) {
     const result = await processCapture(makeCaptureRepo(auth.db), body.data.id);
     log.info('done', { id: body.data.id, outcome: result.outcome });
     if (result.outcome === 'not_found') return jsonError(404, 'not_found');
-    if (result.outcome === 'failed') return jsonError(502, 'ai_failed', result.error);
+    // Security: Do not leak detailed AI or internal errors to the client
+    if (result.outcome === 'failed') return jsonError(502, 'ai_failed');
     return NextResponse.json(result);
   } catch (err) {
     log.error('unexpected error', { id: body.data.id, err });
-    return jsonError(500, 'internal_error', err instanceof Error ? err.message : String(err));
+    // Security: Do not leak detailed internal errors to the client
+    return jsonError(500, 'internal_error');
   }
 }
