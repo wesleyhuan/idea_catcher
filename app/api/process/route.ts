@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (err) {
     log.error('unexpected error', { id: body.data.id, err });
-    return jsonError(500, 'internal_error', err instanceof Error ? err.message : String(err));
+    // 🛡️ Sentinel: Fail securely - Don't leak error details to the client
+    return jsonError(500, 'internal_error');
   }
 }
