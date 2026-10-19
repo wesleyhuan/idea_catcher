@@ -25,6 +25,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ spec_md });
   } catch (err) {
     log.error('spec generation failed', { id: body.data.id, err });
-    return jsonError(502, 'ai_failed', err instanceof Error ? err.message : String(err));
+    return jsonError(502, 'ai_failed');
   }
 }
