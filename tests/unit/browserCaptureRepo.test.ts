@@ -77,6 +77,22 @@ describe('makeBrowserCaptureRepo', () => {
     await expect(fakeDb({ error }).repo.listByStatus('inbox')).rejects.toBe(error);
   });
 
+  it('wraps a plain Supabase error object in an Error that keeps its message', async () => {
+    // What postgrest-js actually returns: the parsed JSON body, not an Error.
+    const error = { message: 'new row violates row-level security policy', code: '42501' };
+    const calls = [
+      (r: ReturnType<typeof fakeDb>['repo']) => r.update('c1', { status: 'done' }),
+      (r: ReturnType<typeof fakeDb>['repo']) => r.listByStatus('inbox'),
+      (r: ReturnType<typeof fakeDb>['repo']) => r.listRecent(5),
+    ];
+    for (const call of calls) {
+      const err = await call(fakeDb({ error }).repo).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe(error.message);
+      expect((err as Error).cause).toBe(error);
+    }
+  });
+
   it('subscribes on a fresh channel each time and removes it on unsubscribe', () => {
     const { repo, db, channel } = fakeDb();
     const onChange = vi.fn();

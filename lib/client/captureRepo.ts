@@ -24,10 +24,19 @@ export type BrowserCaptureRepo = {
   subscribe(onChange: () => void): () => void;
 };
 
+/**
+ * Supabase returns errors as plain `{ message, code, ... }` objects, not Error
+ * instances, so callers doing `err instanceof Error ? err.message : …` would
+ * show "[object Object]". Wrap them, keeping the original as `cause`.
+ */
+function toError(error: { message?: string }): Error {
+  return error instanceof Error ? error : new Error(error.message ?? 'Unknown Supabase error', { cause: error });
+}
+
 export function makeBrowserCaptureRepo(db: SupabaseClient): BrowserCaptureRepo {
   const captures = () => db.from('captures');
-  const check = ({ error }: { error: unknown }) => {
-    if (error) throw error;
+  const check = ({ error }: { error: { message?: string } | null }) => {
+    if (error) throw toError(error);
   };
 
   return {
@@ -36,21 +45,21 @@ export function makeBrowserCaptureRepo(db: SupabaseClient): BrowserCaptureRepo {
         .eq('status', status)
         .order('captured_at', { ascending: false })
         .limit(limit);
-      if (error) throw error;
+      if (error) throw toError(error);
       return data as Capture[];
     },
     async listRecent(limit) {
       const { data, error } = await captures().select('id, raw_text, title, type, captured_at')
         .order('captured_at', { ascending: false })
         .limit(limit);
-      if (error) throw error;
+      if (error) throw toError(error);
       return data as RecentCapture[];
     },
     async listUnprocessed(maxAttempts) {
       const { data, error } = await captures().select('id')
         .in('processing', ['pending', 'failed'])
         .lt('processing_attempts', maxAttempts);
-      if (error) throw error;
+      if (error) throw toError(error);
       return data.map((r) => r.id as string);
     },
     async update(id, patch) {
@@ -63,7 +72,7 @@ export function makeBrowserCaptureRepo(db: SupabaseClient): BrowserCaptureRepo {
           { onConflict: 'user_id,client_id' },
         )
         .select('id');
-      if (error) throw error;
+      if (error) throw toError(error);
       return data.map((r) => r.id as string);
     },
     subscribe(onChange) {
