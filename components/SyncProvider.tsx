@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { addToOutbox, claimUnowned, itemsFor, listOutbox, removeFromOutbox, type OutboxItem } from '@/lib/outbox';
 import { retryUnprocessed, syncOutbox } from '@/lib/sync';
 import { createClient } from '@/lib/supabase/browser';
+import { makeBrowserCaptureRepo } from '@/lib/client/captureRepo';
 import { postJson } from '@/lib/api';
 import { logger } from '@/lib/logger';
 
@@ -49,17 +50,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       list: listOutbox,
       remove: removeFromOutbox,
       getUserId: async () => (await supabase.auth.getSession()).data.session?.user.id ?? null,
-      upsert: async (userId, items) => {
-        const { data, error } = await supabase
-          .from('captures')
-          .upsert(
-            items.map(({ client_id, raw_text, captured_at }) => ({ client_id, raw_text, captured_at, user_id: userId })),
-            { onConflict: 'user_id,client_id' },
-          )
-          .select('id');
-        if (error) throw error;
-        return data.map((r) => r.id as string);
-      },
+      upsert: (userId, items) => makeBrowserCaptureRepo(supabase).upsertOutbox(userId, items),
       process: triggerProcessing,
     }).catch((err) => log.error('sync failed', { err }));
 
@@ -113,18 +104,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     // Retry older rows first: after syncNow, freshly synced rows are also 'pending'
     // and would be processed twice.
     void retryUnprocessed({
-      listUnprocessed: async () => {
-        const { data, error } = await supabase
-          .from('captures')
-          .select('id')
-          .in('processing', ['pending', 'failed'])
-          .lt('processing_attempts', MAX_AUTO_ATTEMPTS);
-        if (error) {
-          log.error('listUnprocessed failed', { message: error.message });
+      listUnprocessed: () => makeBrowserCaptureRepo(supabase).listUnprocessed(MAX_AUTO_ATTEMPTS)
+        .catch((err) => {
+          log.error('listUnprocessed failed', { err });
           return [];
-        }
-        return data.map((r) => r.id as string);
-      },
+        }),
       process: triggerProcessing,
     }).then(syncNow).catch((err) => log.error('startup retry failed', { err }));
 

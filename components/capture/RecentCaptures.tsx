@@ -3,27 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useSync } from '@/components/SyncProvider';
 import { createClient } from '@/lib/supabase/browser';
+import { makeBrowserCaptureRepo, type RecentCapture } from '@/lib/client/captureRepo';
 import { TYPE_ICONS, timeAgo } from '@/lib/labels';
-import type { Capture } from '@/lib/types';
 import { logger } from '@/lib/logger';
 
 const log = logger('recent');
-type Row = Pick<Capture, 'id' | 'raw_text' | 'title' | 'type' | 'captured_at'>;
 
 export function RecentCaptures() {
   const { pendingItems, lastSyncAt } = useSync();
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<RecentCapture[]>([]);
 
   useEffect(() => {
-    createClient()
-      .from('captures')
-      .select('id, raw_text, title, type, captured_at')
-      .order('captured_at', { ascending: false })
-      .limit(5)
-      .then(({ data, error }) => {
-        if (error) log.error('load failed', { message: error.message });
-        else setRows(data as Row[]);
-      });
+    makeBrowserCaptureRepo(createClient()).listRecent(5)
+      .then(setRows)
+      .catch((err) => log.error('load failed', { err }));
   }, [lastSyncAt]);
 
   return (
