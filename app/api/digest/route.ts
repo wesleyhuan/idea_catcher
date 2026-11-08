@@ -23,12 +23,15 @@ export async function POST(req: Request) {
   if (!checkRateLimit(`digest:${auth.user.id}`, 10)) return jsonError(429, 'rate_limited');
 
   const body = Body.safeParse(await req.json().catch(() => null));
-  if (!body.success) return jsonError(400, 'bad_request', body.error.message);
+  if (!body.success) {
+    log.warn('bad request', { issues: body.error.issues });
+    return jsonError(400, 'bad_request');
+  }
 
   try {
     return NextResponse.json(await getOrCreateDigest(makeDigestRepo(auth.db), body.data));
   } catch (err) {
     log.error('digest failed', { ...body.data, err });
-    return jsonError(502, 'ai_failed', err instanceof Error ? err.message : String(err));
+    return jsonError(502, 'ai_failed');
   }
 }
