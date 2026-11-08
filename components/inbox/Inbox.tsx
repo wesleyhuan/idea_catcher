@@ -45,6 +45,10 @@ export function Inbox() {
   }, [filters.status]);
 
   useEffect(() => {
+    // False positive: load() only calls setState after its first await (when the
+    // query resolves), which is the "subscribe, then set state in a callback"
+    // pattern the rule allows. The rule can't see through the async function.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     const supabase = createClient();
     // A unique topic per effect run avoids reusing an already-subscribed channel:

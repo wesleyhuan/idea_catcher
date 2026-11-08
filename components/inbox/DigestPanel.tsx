@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { postJson } from '@/lib/api';
 import { periodRange } from '@/lib/period';
 import { Markdown } from '@/components/Markdown';
@@ -20,41 +20,51 @@ export function DigestPanel() {
   // the current tab's content/error after the fact.
   const seq = useRef(0);
 
-  const load = useCallback(async () => {
+  // Loading is triggered from the event handlers (open toggle, tab click, retry)
+  // rather than an effect watching `open`/`period`: the fetch is a response to a
+  // user action, so doing it there avoids an extra render pass per change.
+  async function load(p: Period) {
     const id = ++seq.current;
     setContent(null);
     setBusy(true);
     setError(null);
     try {
-      const r = await postJson<{ content_md: string }>('/api/digest', periodRange(period));
+      const r = await postJson<{ content_md: string }>('/api/digest', periodRange(p));
       if (id === seq.current) setContent(r.content_md);
     } catch (err) {
-      log.error('digest failed', { period, err });
+      log.error('digest failed', { period: p, err });
       if (id === seq.current) setError(err instanceof Error ? err.message : String(err));
     } finally {
       if (id === seq.current) setBusy(false);
     }
-  }, [period]);
+  }
 
-  useEffect(() => {
-    if (open) void load();
-  }, [open, load]);
+  function selectPeriod(p: Period) {
+    if (p === period) return;
+    setPeriod(p);
+    if (open) void load(p);
+  }
+
+  function toggle(isOpen: boolean) {
+    setOpen(isOpen);
+    if (isOpen) void load(period);
+  }
 
   const tab = (p: Period, label: string) => (
-    <button onClick={() => setPeriod(p)}
+    <button onClick={() => selectPeriod(p)}
       className={`rounded-lg px-3 py-1 ${period === p ? 'bg-amber-500 text-white' : 'border'}`}>{label}</button>
   );
 
   return (
     <details className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800"
-      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      onToggle={(e) => toggle((e.target as HTMLDetailsElement).open)}>
       <summary className="cursor-pointer font-medium">Digest</summary>
       <div className="mt-3 space-y-3">
         <div className="flex gap-2">{tab('day', 'Today')}{tab('week', 'This week')}</div>
         {busy && <p className="text-sm text-neutral-500">Summarizing…</p>}
         {error && (
           <p role="alert" className="text-sm text-red-600">
-            {error} <button className="underline" onClick={load}>Retry</button>
+            {error} <button className="underline" onClick={() => void load(period)}>Retry</button>
           </p>
         )}
         {!busy && content && <Markdown>{content}</Markdown>}
