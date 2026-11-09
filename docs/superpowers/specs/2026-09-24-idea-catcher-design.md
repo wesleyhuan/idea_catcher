@@ -131,6 +131,7 @@ Row-level security on both tables: select/insert/update/delete only where `user_
 Runs on app load, on the browser `online` event, and after each save. Only one sync runs at a time.
 
 1. For each outbox item: upsert to `captures` on `(user_id, client_id)`. On success, remove it from the outbox. On failure, keep it and log.
+   Each outbox item records the `user_id` that saved it. Sync uploads only the signed-in user's items, plus unowned ones (saved with no session known, or before this field existed); other accounts' items stay on the device until that account signs in. Sign-out first syncs, gives any unowned items to the user signing out, and asks for confirmation if some are still unsynced.
 2. For each newly synced row: call `POST /api/process { id }` (fire-and-forget from the UI's perspective).
 3. On app load, also call `/api/process` for rows with `processing in (pending, failed)` and `processing_attempts < 3`.
 
