@@ -16,7 +16,7 @@ export async function createClient() {
         // attach to here — cookies() gives only a mutable store, not a Response.
         // proxy.ts sets those headers on every request it handles (its matcher
         // covers all non-static routes), which is where the refresh actually lands.
-        setAll: (list, _headers) => {
+        setAll: (list) => {
           try {
             list.forEach(({ name, value, options }) => store.set(name, value, options));
           } catch (err) {

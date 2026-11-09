@@ -17,16 +17,19 @@ export async function POST(req: Request) {
   if (!checkRateLimit(`process:${auth.user.id}`, 60)) return jsonError(429, 'rate_limited');
 
   const body = Body.safeParse(await req.json().catch(() => null));
-  if (!body.success) return jsonError(400, 'bad_request', body.error.message);
+  if (!body.success) {
+    log.warn('bad request', { issues: body.error.issues });
+    return jsonError(400, 'bad_request');
+  }
 
   try {
     const result = await processCapture(makeCaptureRepo(auth.db), body.data.id);
     log.info('done', { id: body.data.id, outcome: result.outcome });
     if (result.outcome === 'not_found') return jsonError(404, 'not_found');
-    if (result.outcome === 'failed') return jsonError(502, 'ai_failed', result.error);
+    if (result.outcome === 'failed') return jsonError(502, 'ai_failed');
     return NextResponse.json(result);
   } catch (err) {
     log.error('unexpected error', { id: body.data.id, err });
-    return jsonError(500, 'internal_error', err instanceof Error ? err.message : String(err));
+    return jsonError(500, 'internal_error');
   }
 }
