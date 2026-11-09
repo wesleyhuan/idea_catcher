@@ -33,7 +33,7 @@ describe('specForCapture', () => {
   const repo = (row: Capture | null) => ({
     get: vi.fn().mockResolvedValue(row),
     saveSpec: vi.fn().mockResolvedValue(undefined),
-    markAttempt: vi.fn(), saveResult: vi.fn(), markFailed: vi.fn(),
+    claim: vi.fn(), saveResult: vi.fn(), markFailed: vi.fn(),
   });
 
   it('returns null when the capture is missing', async () => {
