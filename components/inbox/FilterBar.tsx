@@ -8,6 +8,9 @@ const select = 'rounded-lg border border-neutral-300 bg-transparent px-2 py-1 te
 export function FilterBar({ value, onChange }: { value: Filters; onChange: (f: Filters) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
+      <input aria-label="Search" type="search" placeholder="Search 搜尋…" value={value.query}
+        onChange={(e) => onChange({ ...value, query: e.target.value })}
+        className={`${select} w-full md:w-64`} />
       <select aria-label="Type" className={select} value={value.type}
         onChange={(e) => onChange({ ...value, type: e.target.value as Filters['type'] })}>
         <option value="all">All types</option>
