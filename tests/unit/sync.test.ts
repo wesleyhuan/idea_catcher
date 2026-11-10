@@ -33,6 +33,23 @@ describe('syncOutbox', () => {
     expect(deps.process).toHaveBeenCalledWith('row-b');
   });
 
+  it("uploads only the signed-in user's items and unowned ones, keeping others'", async () => {
+    const mine = { ...item('a'), user_id: 'u1' };
+    const theirs = { ...item('b'), user_id: 'u2' };
+    const unowned = { ...item('c'), user_id: null };
+    const { deps, store } = memoryDeps([mine, theirs, unowned]);
+    expect(await syncOutbox(deps)).toEqual({ synced: 2, remaining: 0 });
+    expect(deps.upsert).toHaveBeenCalledWith('u1', [mine, unowned]);
+    expect(store).toEqual([theirs]);
+  });
+
+  it("does not upload when the outbox holds only another user's items", async () => {
+    const { deps, store } = memoryDeps([{ ...item('a'), user_id: 'u2' }]);
+    expect(await syncOutbox(deps)).toEqual({ synced: 0, remaining: 0 });
+    expect(deps.upsert).not.toHaveBeenCalled();
+    expect(store).toHaveLength(1);
+  });
+
   it('does nothing when the outbox is empty', async () => {
     const { deps } = memoryDeps([]);
     expect(await syncOutbox(deps)).toEqual({ synced: 0, remaining: 0 });

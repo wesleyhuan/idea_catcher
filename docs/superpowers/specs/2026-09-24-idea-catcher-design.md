@@ -110,9 +110,10 @@ Indexes: `(user_id, status, captured_at desc)`, `(user_id, processing)`.
 | `period_start` | date | In the user's local timezone (sent by client) |
 | `content_md` | text | |
 | `capture_count` | int | Number of captures the digest was built from |
+| `source_updated_at` | timestamptz | Latest `updated_at` among those captures; nullable |
 | `created_at` | timestamptz | |
 
-`unique (user_id, period, period_start)`. A digest is regenerated only if the current capture count for the period differs from `capture_count`.
+`unique (user_id, period, period_start)`. A digest is reused only if the period's processed captures still match both `capture_count` and `source_updated_at`, so additions, removals, edits and status changes all regenerate it.
 
 ### Security
 
@@ -131,6 +132,7 @@ Row-level security on both tables: select/insert/update/delete only where `user_
 Runs on app load, on the browser `online` event, and after each save. Only one sync runs at a time.
 
 1. For each outbox item: upsert to `captures` on `(user_id, client_id)`. On success, remove it from the outbox. On failure, keep it and log.
+   Each outbox item records the `user_id` that saved it. Sync uploads only the signed-in user's items, plus unowned ones (saved with no session known, or before this field existed); other accounts' items stay on the device until that account signs in. Sign-out first syncs, gives any unowned items to the user signing out, and asks for confirmation if some are still unsynced.
 2. For each newly synced row: call `POST /api/process { id }` (fire-and-forget from the UI's perspective).
 3. On app load, also call `/api/process` for rows with `processing in (pending, failed)` and `processing_attempts < 3`.
 
@@ -151,7 +153,7 @@ Runs on app load, on the browser `online` event, and after each save. Only one s
 ### 5.5 `/api/digest`
 
 1. Input: `{ period, period_start, tz }`. Auth check.
-2. Count the user's captures in the period. If a cached digest exists with the same count, return it.
+2. Count the user's processed captures in the period and find their latest `updated_at`. If a cached digest matches both, return it.
 3. Otherwise call **Claude Sonnet** with the period's processed captures (title, type, summary, context, status). Output: short overview, grouped highlights, suggested priorities for the laptop session. Upsert into `digests` and return it.
 4. Zero captures: return a fixed "Nothing captured" message without calling Claude.
 

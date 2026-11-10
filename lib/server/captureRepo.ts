@@ -4,7 +4,11 @@ import type { ProcessResult } from '@/lib/ai/process';
 
 export type CaptureRepo = {
   get(id: string): Promise<Capture | null>;
-  markAttempt(id: string, attempts: number): Promise<void>;
+  /**
+   * Atomically counts an attempt and takes a lease on the capture. Returns null
+   * when it is done, user-edited, or another request holds a live lease.
+   */
+  claim(id: string): Promise<Capture | null>;
   /** Returns false when the user edited the capture meanwhile (nothing written). */
   saveResult(id: string, result: ProcessResult): Promise<boolean>;
   markFailed(id: string, message: string): Promise<void>;
@@ -23,12 +27,14 @@ export function makeCaptureRepo(db: SupabaseClient): CaptureRepo {
       if (error) throw error;
       return data as Capture | null;
     },
-    async markAttempt(id, attempts) {
-      check(await captures().update({ processing_attempts: attempts }).eq('id', id));
+    async claim(id) {
+      const { data, error } = await db.rpc('claim_capture', { p_id: id }).maybeSingle();
+      if (error) throw error;
+      return data as Capture | null;
     },
     async saveResult(id, result) {
       const { data, error } = await captures()
-        .update({ ...result, processing: 'done', processing_error: null })
+        .update({ ...result, processing: 'done', processing_error: null, processing_claimed_at: null })
         .eq('id', id)
         .eq('user_edited', false)
         .select('id');
@@ -38,7 +44,7 @@ export function makeCaptureRepo(db: SupabaseClient): CaptureRepo {
     async markFailed(id, message) {
       // A user edit made while the AI call was running already resolved the capture.
       check(await captures()
-        .update({ processing: 'failed', processing_error: message })
+        .update({ processing: 'failed', processing_error: message, processing_claimed_at: null })
         .eq('id', id)
         .eq('user_edited', false));
     },

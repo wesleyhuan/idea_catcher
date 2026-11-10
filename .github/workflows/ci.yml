@@ -1,0 +1,37 @@
+# Runs on every push to main and every pull request (whatever its base branch,
+# so stacked PRs are checked too). Each step is a gate: if one fails, the PR
+# shows a red check and the later steps don't run.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same PR cancels the run still going for the old commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # `npm ci` installs exactly what package-lock.json lists and fails if the
+      # lock file and package.json disagree, so a stale lock is caught here.
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      # The build only needs the public Supabase settings to exist; placeholder
+      # values are enough because nothing connects to Supabase at build time.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
