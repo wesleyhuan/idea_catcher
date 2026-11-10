@@ -4,9 +4,10 @@ export type Filters = {
   type: CaptureType | 'all';
   context: CaptureContext | 'all';
   status: CaptureStatus; // applied in the database query
+  query: string; // search text; applied in the database query
 };
 
-export const DEFAULT_FILTERS: Filters = { type: 'all', context: 'all', status: 'inbox' };
+export const DEFAULT_FILTERS: Filters = { type: 'all', context: 'all', status: 'inbox', query: '' };
 
 export function applyFilters(captures: Capture[], { type, context }: Filters): Capture[] {
   return captures.filter((c) =>

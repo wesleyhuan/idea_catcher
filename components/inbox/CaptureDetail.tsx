@@ -11,12 +11,13 @@ const log = logger('capture-detail');
 type Props = {
   capture: Capture;
   onUpdate: (patch: CapturePatch) => Promise<void>;
+  onDelete: () => Promise<void>;
   specSlot?: ReactNode;
 };
 
 const field = 'w-full rounded-lg border border-neutral-300 bg-transparent px-2 py-1 text-base dark:border-neutral-700';
 
-export function CaptureDetail({ capture: c, onUpdate, specSlot }: Props) {
+export function CaptureDetail({ capture: c, onUpdate, onDelete, specSlot }: Props) {
   const [draft, setDraft] = useState({
     title: c.title ?? '',
     summary: c.summary ?? '',
@@ -48,6 +49,19 @@ export function CaptureDetail({ capture: c, onUpdate, specSlot }: Props) {
   });
   const setStatus = (status: CaptureStatus) => run({ status });
 
+  async function remove() {
+    // Deleting can't be undone (Archive is the reversible option), so ask first.
+    if (!window.confirm(`Delete "${c.title || c.raw_text.slice(0, 60)}" permanently? This can't be undone.`)) return;
+    setBusy(true);
+    try {
+      await onDelete();
+    } catch (err) {
+      log.error('onDelete failed', { id: c.id, err });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <input aria-label="Title" className={`${field} font-semibold`} value={draft.title} onChange={set('title')} />
@@ -78,6 +92,8 @@ export function CaptureDetail({ capture: c, onUpdate, specSlot }: Props) {
         {c.status !== 'inbox' && (
           <button disabled={busy} onClick={() => setStatus('inbox')} className="rounded-lg border px-3 py-1">Back to inbox</button>
         )}
+        <button disabled={busy} onClick={remove}
+          className="ml-auto rounded-lg border border-red-300 px-3 py-1 text-red-600 dark:border-red-800">Delete</button>
       </div>
       {specSlot}
     </div>
