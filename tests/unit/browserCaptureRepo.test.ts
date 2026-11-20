@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { makeBrowserCaptureRepo } from '@/lib/client/captureRepo';
+import { makeBrowserCaptureRepo, searchFilter } from '@/lib/client/captureRepo';
 
 type Call = [method: string, ...args: unknown[]];
 
@@ -47,6 +47,31 @@ describe('makeBrowserCaptureRepo', () => {
     ]);
   });
 
+  it('adds a search filter over title, summary and original text when given a query', async () => {
+    const { repo, calls } = fakeDb({ data: [] });
+    await repo.listByStatus('inbox', { query: ' 牛奶 ' });
+    expect(calls).toEqual([
+      ['from', 'captures'],
+      ['select', '*'],
+      ['eq', 'status', 'inbox'],
+      ['or', 'title.ilike."%牛奶%",summary.ilike."%牛奶%",raw_text.ilike."%牛奶%"'],
+      ['order', 'captured_at', { ascending: false }],
+      ['limit', 200],
+    ]);
+  });
+
+  it('adds no search filter for a blank query', async () => {
+    const { repo, calls } = fakeDb({ data: [] });
+    await repo.listByStatus('inbox', { query: '   ' });
+    expect(calls.map(([method]) => method)).not.toContain('or');
+  });
+
+  it('deletes one capture by id', async () => {
+    const { repo, calls } = fakeDb();
+    await repo.remove('c1');
+    expect(calls).toEqual([['from', 'captures'], ['delete'], ['eq', 'id', 'c1']]);
+  });
+
   it('lists only retryable captures under the attempt limit, as ids', async () => {
     const { repo, calls } = fakeDb({ data: [{ id: 'a' }, { id: 'b' }] });
     expect(await repo.listUnprocessed(3)).toEqual(['a', 'b']);
@@ -84,6 +109,7 @@ describe('makeBrowserCaptureRepo', () => {
       (r: ReturnType<typeof fakeDb>['repo']) => r.update('c1', { status: 'done' }),
       (r: ReturnType<typeof fakeDb>['repo']) => r.listByStatus('inbox'),
       (r: ReturnType<typeof fakeDb>['repo']) => r.listRecent(5),
+      (r: ReturnType<typeof fakeDb>['repo']) => r.remove('c1'),
     ];
     for (const call of calls) {
       const err = await call(fakeDb({ error }).repo).catch((e: unknown) => e);
@@ -105,5 +131,25 @@ describe('makeBrowserCaptureRepo', () => {
 
     unsubscribe();
     expect(db.removeChannel).toHaveBeenCalledWith(channel);
+  });
+});
+
+describe('searchFilter', () => {
+  it('returns null for blank text', () => {
+    expect(searchFilter('')).toBeNull();
+    expect(searchFilter('  \n ')).toBeNull();
+  });
+
+  it('matches LIKE wildcards literally', () => {
+    // 100% → the % must not act as "anything"; snake_case → the _ must not act as "any one character".
+    expect(searchFilter('100%')).toContain('"%100\\\\%%"');
+    expect(searchFilter('a_b')).toContain('"%a\\\\_b%"');
+  });
+
+  it('quotes the value so filter syntax in the query stays text', () => {
+    expect(searchFilter('a,b.c(d)')).toBe(
+      'title.ilike."%a,b.c(d)%",summary.ilike."%a,b.c(d)%",raw_text.ilike."%a,b.c(d)%"',
+    );
+    expect(searchFilter('say "hi"')).toContain('"%say \\"hi\\"%"');
   });
 });

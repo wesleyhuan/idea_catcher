@@ -12,12 +12,20 @@ export type RecentCapture = Pick<Capture, 'id' | 'raw_text' | 'title' | 'type' |
  * Every browser-side read and write of `captures`. RLS limits all of them to
  * the signed-in user, so none filter by user_id.
  */
+export type ListOptions = {
+  /** Keeps only captures whose title, summary or original text contains this (case-insensitive). */
+  query?: string;
+  limit?: number;
+};
+
 export type BrowserCaptureRepo = {
-  listByStatus(status: CaptureStatus, limit?: number): Promise<Capture[]>;
+  listByStatus(status: CaptureStatus, options?: ListOptions): Promise<Capture[]>;
   listRecent(limit: number): Promise<RecentCapture[]>;
   /** Ids still worth auto-processing: pending or failed, under `maxAttempts`. */
   listUnprocessed(maxAttempts: number): Promise<string[]>;
   update(id: string, patch: CapturePatch): Promise<void>;
+  /** Permanently deletes the capture, including its spec. Deleting a missing id is not an error. */
+  remove(id: string): Promise<void>;
   /** Idempotent on (user_id, client_id); returns the row ids. */
   upsertOutbox(userId: string, items: OutboxItem[]): Promise<string[]>;
   /** Calls `onChange` on any insert/update/delete; returns an unsubscribe function. */
@@ -33,6 +41,26 @@ function toError(error: { message?: string }): Error {
   return error instanceof Error ? error : new Error(error.message ?? 'Unknown Supabase error', { cause: error });
 }
 
+const SEARCH_COLUMNS = ['title', 'summary', 'raw_text'] as const;
+
+/**
+ * Builds the PostgREST `or` filter for "any search column contains `query`",
+ * or null when the query is blank. Two layers of escaping, innermost first:
+ * 1. LIKE: `%` and `_` are wildcards and `\` is the escape character, so each
+ *    gets a `\` in front to be matched literally.
+ * 2. PostgREST: the value goes in double quotes so commas, dots and parentheses
+ *    in the query can't be read as filter syntax; inside the quotes `\` and `"`
+ *    are escaped with `\`.
+ * (PostgREST also reads `*` as `%`; that can't be escaped and only widens the match.)
+ */
+export function searchFilter(query: string): string | null {
+  const text = query.trim();
+  if (!text) return null;
+  const like = `%${text.replace(/[\\%_]/g, '\\$&')}%`;
+  const quoted = `"${like.replace(/[\\"]/g, '\\$&')}"`;
+  return SEARCH_COLUMNS.map((column) => `${column}.ilike.${quoted}`).join(',');
+}
+
 export function makeBrowserCaptureRepo(db: SupabaseClient): BrowserCaptureRepo {
   const captures = () => db.from('captures');
   const check = ({ error }: { error: { message?: string } | null }) => {
@@ -40,9 +68,10 @@ export function makeBrowserCaptureRepo(db: SupabaseClient): BrowserCaptureRepo {
   };
 
   return {
-    async listByStatus(status, limit = 200) {
-      const { data, error } = await captures().select('*')
-        .eq('status', status)
+    async listByStatus(status, { query = '', limit = 200 } = {}) {
+      const filter = searchFilter(query);
+      const rows = captures().select('*').eq('status', status);
+      const { data, error } = await (filter ? rows.or(filter) : rows)
         .order('captured_at', { ascending: false })
         .limit(limit);
       if (error) throw toError(error);
@@ -64,6 +93,9 @@ export function makeBrowserCaptureRepo(db: SupabaseClient): BrowserCaptureRepo {
     },
     async update(id, patch) {
       check(await captures().update(patch).eq('id', id));
+    },
+    async remove(id) {
+      check(await captures().delete().eq('id', id));
     },
     async upsertOutbox(userId, items) {
       const { data, error } = await captures()

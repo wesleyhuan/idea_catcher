@@ -36,3 +36,4 @@ Capture ideas and chores in seconds on your phone; Claude organizes them; act on
 - [ ] Tap the box, use the keyboard 🎤 to dictate mixed 中文/English → Save → the AI title appears in 繁體中文 in the Inbox (and in Recent on the next sync)
 - [ ] Airplane mode → capture → "1 waiting to sync" → airplane mode off → reopen → synced and processed
 - [ ] Laptop inbox shows the capture; Generate spec → Copy works; Digest loads
+- [ ] Inbox search finds a capture by a word from its title or original text (中文 too); Delete asks to confirm, then the capture is gone
