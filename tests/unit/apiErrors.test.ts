@@ -10,6 +10,11 @@ vi.mock('@/lib/server/route', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/route')>();
   return { ...actual, requireUser: vi.fn(async () => ({ db: {}, user: { id: 'u1' } })) };
 });
+// Rate limiting has its own tests; here every request is within the limit.
+vi.mock('@/lib/rateLimit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/rateLimit')>()),
+  checkRateLimit: vi.fn(async () => true),
+}));
 vi.mock('@/lib/server/captureRepo', () => ({ makeCaptureRepo: () => ({}) }));
 vi.mock('@/lib/server/digestRepo', () => ({ makeDigestRepo: () => ({}) }));
 const processCapture = vi.fn();

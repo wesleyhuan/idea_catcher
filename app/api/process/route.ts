@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError, requireUser } from '@/lib/server/route';
-import { checkRateLimit } from '@/lib/rateLimit';
+import { enforceRateLimit, jsonError, requireUser } from '@/lib/server/route';
 import { makeCaptureRepo } from '@/lib/server/captureRepo';
 import { processCapture } from '@/lib/server/processCapture';
 import { logger } from '@/lib/logger';
@@ -14,7 +13,8 @@ const Body = z.object({ id: z.string().uuid() });
 export async function POST(req: Request) {
   const auth = await requireUser();
   if (!auth) return jsonError(401, 'unauthorized');
-  if (!checkRateLimit(`process:${auth.user.id}`, 60)) return jsonError(429, 'rate_limited');
+  const limited = await enforceRateLimit(auth.db, 'process');
+  if (limited) return limited;
 
   const body = Body.safeParse(await req.json().catch(() => null));
   if (!body.success) {

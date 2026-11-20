@@ -17,10 +17,16 @@ export function isFresh(cached: CachedDigest | null, source: DigestSource): cach
   return Date.parse(cached.source_updated_at) === Date.parse(source.latestUpdatedAt);
 }
 
+export type DigestDeps = {
+  ai?: (c: DigestCapture[], p: Period) => Promise<string>;
+  /** Runs only when the model is about to be called; throw to stop (e.g. rate limit). */
+  beforeGenerate?: () => Promise<void>;
+};
+
 export async function getOrCreateDigest(
   repo: DigestRepo,
   range: DigestRange,
-  ai: (c: DigestCapture[], p: Period) => Promise<string> = generateDigest,
+  { ai = generateDigest, beforeGenerate }: DigestDeps = {},
 ): Promise<{ content_md: string; cached: boolean }> {
   const source = await repo.sourceOf(range.from, range.to);
   if (source.count === 0) return { content_md: EMPTY_DIGEST, cached: false };
@@ -31,6 +37,7 @@ export async function getOrCreateDigest(
     return { content_md: cached.content_md, cached: true };
   }
 
+  await beforeGenerate?.();
   const captures = await repo.listProcessed(range.from, range.to);
   const content_md = await ai(captures, range.period);
   await repo.save(range.period, range.period_start, content_md, source);

@@ -188,7 +188,7 @@ As in 5.1. Works offline once the app shell is cached.
 - Claude calls: request timeout (30s for Haiku, 90s for Sonnet) and one automatic retry on network/5xx errors.
 - Invalid model JSON is a failure, never partially saved.
 - Spec and digest UI shows loading, and on failure the error plus a retry button.
-- Rate limit per user: `/api/process` 60/min, `/api/spec` and `/api/digest` 10/min. Exceeding returns 429. In v1 this is a best-effort in-memory limiter per server instance (enough for a single user); move it to a shared store (e.g. Upstash Redis) before opening to other users.
+- Rate limit per user: `/api/process` 60/min, `/api/spec` and `/api/digest` 10/min. Exceeding returns 429. Counted in Postgres (`check_rate_limit`, migration 0006: fixed one-minute windows, so every server instance shares the count); a failed count returns 500 rather than letting the request through. `/api/digest` counts only cache misses, since a cached digest costs no model call.
 
 ## 8. Logging
 

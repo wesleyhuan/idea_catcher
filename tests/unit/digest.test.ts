@@ -26,13 +26,13 @@ function fakeRepo(source: DigestSource, cached: CachedDigest | null) {
 describe('getOrCreateDigest', () => {
   it('returns the empty message without calling the AI', async () => {
     const ai = vi.fn();
-    expect(await getOrCreateDigest(fakeRepo(src(0, null), null), range, ai)).toEqual({ content_md: EMPTY_DIGEST, cached: false });
+    expect(await getOrCreateDigest(fakeRepo(src(0, null), null), range, { ai })).toEqual({ content_md: EMPTY_DIGEST, cached: false });
     expect(ai).not.toHaveBeenCalled();
   });
 
   it('returns the cached digest when nothing changed', async () => {
     const ai = vi.fn();
-    const r = await getOrCreateDigest(fakeRepo(src(3), cache(3)), range, ai);
+    const r = await getOrCreateDigest(fakeRepo(src(3), cache(3)), range, { ai });
     expect(r).toEqual({ content_md: 'old', cached: true });
     expect(ai).not.toHaveBeenCalled();
   });
@@ -40,7 +40,7 @@ describe('getOrCreateDigest', () => {
   it('regenerates and saves when new captures arrived', async () => {
     const repo = fakeRepo(src(4, T2), cache(3));
     const ai = vi.fn().mockResolvedValue('new');
-    expect(await getOrCreateDigest(repo, range, ai)).toEqual({ content_md: 'new', cached: false });
+    expect(await getOrCreateDigest(repo, range, { ai })).toEqual({ content_md: 'new', cached: false });
     expect(ai).toHaveBeenCalledWith([item], 'day');
     expect(repo.save).toHaveBeenCalledWith('day', '2026-09-24', 'new', src(4, T2));
   });
@@ -48,8 +48,24 @@ describe('getOrCreateDigest', () => {
   it('regenerates when a capture was edited or re-statused but the count is unchanged', async () => {
     const repo = fakeRepo(src(3, T2), cache(3, T1));
     const ai = vi.fn().mockResolvedValue('new');
-    expect(await getOrCreateDigest(repo, range, ai)).toEqual({ content_md: 'new', cached: false });
+    expect(await getOrCreateDigest(repo, range, { ai })).toEqual({ content_md: 'new', cached: false });
     expect(repo.save).toHaveBeenCalledWith('day', '2026-09-24', 'new', src(3, T2));
+  });
+
+  it('does not run beforeGenerate (the rate limit) on a cache hit', async () => {
+    const beforeGenerate = vi.fn();
+    await getOrCreateDigest(fakeRepo(src(3), cache(3)), range, { ai: vi.fn(), beforeGenerate });
+    expect(beforeGenerate).not.toHaveBeenCalled();
+  });
+
+  it('runs beforeGenerate on a miss, and stops before the AI when it throws', async () => {
+    const ai = vi.fn().mockResolvedValue('new');
+    const blocked = new Error('rate limited');
+    const beforeGenerate = vi.fn().mockRejectedValue(blocked);
+    const repo = fakeRepo(src(4, T2), cache(3));
+    await expect(getOrCreateDigest(repo, range, { ai, beforeGenerate })).rejects.toBe(blocked);
+    expect(ai).not.toHaveBeenCalled();
+    expect(repo.save).not.toHaveBeenCalled();
   });
 });
 
