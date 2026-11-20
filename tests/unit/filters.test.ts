@@ -1,19 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilters, DEFAULT_FILTERS } from '@/lib/filters';
+import { DEFAULT_FILTERS, matchesFilters } from '@/lib/filters';
 import type { Capture } from '@/lib/types';
 
-const c = (id: string, type: Capture['type'], context: Capture['context']) =>
-  ({ id, type, context } as Capture);
-const list = [c('1', 'idea', 'laptop'), c('2', 'todo', 'phone'), c('3', null, null)];
+const c = (type: Capture['type'], context: Capture['context'], status: Capture['status'] = 'inbox') =>
+  ({ id: 'x', type, context, status } as Capture);
 
-describe('applyFilters', () => {
-  it('returns everything by default, including unprocessed', () => {
-    expect(applyFilters(list, DEFAULT_FILTERS).map((x) => x.id)).toEqual(['1', '2', '3']);
+describe('matchesFilters', () => {
+  it('matches everything in the status by default, including unprocessed', () => {
+    expect(matchesFilters(c('idea', 'laptop'), DEFAULT_FILTERS)).toBe(true);
+    expect(matchesFilters(c(null, null), DEFAULT_FILTERS)).toBe(true);
+  });
+  it('rejects another status', () => {
+    expect(matchesFilters(c('idea', 'laptop', 'done'), DEFAULT_FILTERS)).toBe(false);
   });
   it('filters by type and hides unprocessed', () => {
-    expect(applyFilters(list, { ...DEFAULT_FILTERS, type: 'idea' }).map((x) => x.id)).toEqual(['1']);
+    const f = { ...DEFAULT_FILTERS, type: 'idea' as const };
+    expect(matchesFilters(c('idea', 'laptop'), f)).toBe(true);
+    expect(matchesFilters(c('todo', 'laptop'), f)).toBe(false);
+    expect(matchesFilters(c(null, null), f)).toBe(false);
   });
   it('filters by context', () => {
-    expect(applyFilters(list, { ...DEFAULT_FILTERS, context: 'phone' }).map((x) => x.id)).toEqual(['2']);
+    const f = { ...DEFAULT_FILTERS, context: 'phone' as const };
+    expect(matchesFilters(c('todo', 'phone'), f)).toBe(true);
+    expect(matchesFilters(c('todo', 'laptop'), f)).toBe(false);
   });
 });
