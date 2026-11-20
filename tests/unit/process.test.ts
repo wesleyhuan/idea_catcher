@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildProcessPrompt, MAX_PROMPT_CHARS, parseProcessResult, processText } from '@/lib/ai/process';
+import { buildProcessPrompt, parseProcessResult, processText } from '@/lib/ai/process';
+import { MAX_PROMPT_CHARS } from '@/lib/ai/prompts';
 
 const recorded = {
   zhTodo: '{"type":"todo","title":"修理腳踏車","summary":"週末前把腳踏車的煞車修好。","next_steps":["查附近車行營業時間","週六早上送修"],"context":"phone","effort":"medium"}',

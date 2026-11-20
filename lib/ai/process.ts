@@ -3,12 +3,11 @@ import { CAPTURE_TYPES, CONTEXTS, EFFORTS } from '@/lib/types';
 import type { CompleteFn } from '@/lib/ai/types';
 import { MODELS, TIMEOUTS } from '@/lib/ai/models';
 import { extractJson } from '@/lib/ai/json';
+import { LANGUAGE_RULE, MAX_PROMPT_CHARS } from '@/lib/ai/prompts';
 import { claudeComplete } from '@/lib/claude';
 import { logger } from '@/lib/logger';
 
 const log = logger('ai/process');
-
-export const MAX_PROMPT_CHARS = 8000;
 
 export const ProcessResultSchema = z.object({
   type: z.enum(CAPTURE_TYPES),
@@ -19,9 +18,6 @@ export const ProcessResultSchema = z.object({
   effort: z.enum(EFFORTS),
 });
 export type ProcessResult = z.infer<typeof ProcessResultSchema>;
-
-export const LANGUAGE_RULE =
-  "Write in the note's dominant language. If it is Chinese, use Traditional Chinese (繁體中文), never Simplified. Keep technical terms in English.";
 
 const SYSTEM = `You organize quick personal captures (ideas, chores) that were typed or dictated on a phone, often in mixed Chinese and English.
 Reply with ONLY a JSON object, no prose, with exactly these keys:

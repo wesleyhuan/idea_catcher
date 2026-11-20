@@ -1,7 +1,7 @@
 import type { Capture } from '@/lib/types';
 import type { CompleteFn } from '@/lib/ai/types';
 import { MODELS, TIMEOUTS } from '@/lib/ai/models';
-import { LANGUAGE_RULE, MAX_PROMPT_CHARS } from '@/lib/ai/process';
+import { LANGUAGE_RULE, MAX_PROMPT_CHARS } from '@/lib/ai/prompts';
 import { claudeComplete } from '@/lib/claude';
 
 const SYSTEM = `You turn a captured idea or task into a concise, practical spec the user can act on at their laptop.
