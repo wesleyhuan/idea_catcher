@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     log.info('done', { id: body.data.id, outcome: result.outcome });
     if (result.outcome === 'not_found') return jsonError(404, 'not_found');
     if (result.outcome === 'failed') return jsonError(502, 'ai_failed');
+    if (result.outcome === 'exhausted') return jsonError(409, 'too_many_attempts');
     return NextResponse.json(result);
   } catch (err) {
     log.error('unexpected error', { id: body.data.id, err });

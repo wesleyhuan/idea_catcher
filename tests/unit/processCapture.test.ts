@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { processCapture } from '@/lib/server/processCapture';
+import { MAX_PROCESS_ATTEMPTS, processCapture } from '@/lib/server/processCapture';
 import type { CaptureRepo } from '@/lib/server/captureRepo';
 import type { Capture } from '@/lib/types';
 import type { ProcessResult } from '@/lib/ai/process';
@@ -33,6 +33,19 @@ function fakeRepo(
 }
 
 describe('processCapture', () => {
+  it('stops at the attempt limit without claiming or calling the AI', async () => {
+    const repo = fakeRepo(capture({ processing: 'failed', processing_attempts: MAX_PROCESS_ATTEMPTS }));
+    const ai = vi.fn();
+    expect(await processCapture(repo, 'c1', ai)).toEqual({ outcome: 'exhausted' });
+    expect(repo.claim).not.toHaveBeenCalled();
+    expect(ai).not.toHaveBeenCalled();
+  });
+
+  it('still processes one attempt below the limit', async () => {
+    const repo = fakeRepo(capture({ processing: 'failed', processing_attempts: MAX_PROCESS_ATTEMPTS - 1 }));
+    expect(await processCapture(repo, 'c1', vi.fn().mockResolvedValue(result))).toEqual({ outcome: 'done' });
+  });
+
   it('returns not_found when the row is missing or belongs to someone else (RLS hides it)', async () => {
     const repo = fakeRepo(null);
     const ai = vi.fn();

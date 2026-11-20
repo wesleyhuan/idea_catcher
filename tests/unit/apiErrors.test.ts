@@ -46,6 +46,12 @@ describe('API routes do not leak error details', () => {
     await expectOnlyCode(await POST(post({ id: ID })), 502, 'ai_failed');
   });
 
+  it('process: attempt limit → 409 too_many_attempts', async () => {
+    processCapture.mockResolvedValue({ outcome: 'exhausted' });
+    const { POST } = await import('@/app/api/process/route');
+    await expectOnlyCode(await POST(post({ id: ID })), 409, 'too_many_attempts');
+  });
+
   it('spec: thrown error → 502 ai_failed', async () => {
     specForCapture.mockRejectedValue(new Error(SECRET));
     const { POST } = await import('@/app/api/spec/route');
