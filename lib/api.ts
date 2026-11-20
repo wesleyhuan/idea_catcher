@@ -10,6 +10,7 @@ export const API_ERROR_MESSAGES = {
   bad_request: 'The request was invalid.',
   not_found: 'That capture no longer exists.',
   ai_failed: 'The AI service failed. Try again in a moment.',
+  too_many_attempts: 'Processing failed too many times. Edit this capture by hand instead.',
   internal_error: 'Something went wrong on the server. Try again.',
 } as const;
 

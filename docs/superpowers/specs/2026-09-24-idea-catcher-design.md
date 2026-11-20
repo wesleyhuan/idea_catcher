@@ -119,6 +119,8 @@ Indexes: `(user_id, status, captured_at desc)`, `(user_id, processing)`.
 
 Row-level security on both tables: select/insert/update/delete only where `user_id = auth.uid()`.
 
+RLS limits which rows a user can write, not which columns, and the API routes write with the user's own session, so the server and the browser have the same database permissions. A `captures` update trigger therefore enforces how values may change, for every writer: `raw_text`, `client_id`, `captured_at` and `created_at` are kept as inserted; `processing = 'done'` is terminal; `processing_attempts` never decreases; and `claim_capture` stops at 5 attempts. This caps the AI calls one capture can cost, even for a user calling PostgREST directly.
+
 ## 5. Flows
 
 ### 5.1 Capture (phone)

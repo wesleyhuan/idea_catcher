@@ -42,11 +42,13 @@ export function makeCaptureRepo(db: SupabaseClient): CaptureRepo {
       return data.length > 0;
     },
     async markFailed(id, message) {
-      // A user edit made while the AI call was running already resolved the capture.
+      // A user edit made while the AI call was running already resolved the
+      // capture, and 'done' is terminal (the update trigger rejects leaving it).
       check(await captures()
         .update({ processing: 'failed', processing_error: message, processing_claimed_at: null })
         .eq('id', id)
-        .eq('user_edited', false));
+        .eq('user_edited', false)
+        .neq('processing', 'done'));
     },
     async saveSpec(id, markdown) {
       check(await captures().update({ spec_md: markdown }).eq('id', id));

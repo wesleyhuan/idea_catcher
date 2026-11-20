@@ -4,7 +4,13 @@ import { logger } from '@/lib/logger';
 
 const log = logger('processCapture');
 
-export type ProcessOutcome = { outcome: 'done' | 'skipped' | 'failed' | 'not_found'; error?: string };
+/** claim_capture refuses past this (supabase/migrations/0005); keep the two in sync. */
+export const MAX_PROCESS_ATTEMPTS = 5;
+
+export type ProcessOutcome = {
+  outcome: 'done' | 'skipped' | 'failed' | 'exhausted' | 'not_found';
+  error?: string;
+};
 
 export async function processCapture(
   repo: CaptureRepo,
@@ -19,6 +25,10 @@ export async function processCapture(
   if (capture.user_edited || capture.processing === 'done') {
     log.debug('skip', { id, userEdited: capture.user_edited, processing: capture.processing });
     return { outcome: 'skipped' };
+  }
+  if (capture.processing_attempts >= MAX_PROCESS_ATTEMPTS) {
+    log.warn('attempt limit reached', { id, attempts: capture.processing_attempts });
+    return { outcome: 'exhausted' };
   }
 
   // The checks above only avoid a needless claim; the claim re-checks them atomically.
